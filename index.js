@@ -100,9 +100,56 @@ app.get("/show", async (req, res) => {
     }
 });
 
+// API endpoint to get search results
+app.get("/search", async (req, res) => {
+    let query = req.query.query;
+    if (!query) return res.sendStatus(400);
+
+    try {
+        let data = await search(query)
+
+        res.status(200).send(data)
+    } catch (ignored) {
+        res.status(500).send({error: ERROR_MSG})
+    }
+})
+
 // Helper method for validating episode and season inputs
 function isValidNumber(n) {
     return !isNaN(parseInt(n)) && isFinite(n);
+}
+
+// Method to return search results based on a query
+async function search(query) {
+    const page = await browser.newPage();
+    await injectPageCleaner(page);
+    await page.goto(SEARCH_URL(query));
+
+    // Web scraper logic from reverse engineering fmovies.ps
+    await page.waitForSelector(".film_list-wrap");
+    return await page.evaluate(() => 
+        Array.from(document.querySelector(".film_list-wrap").children)
+            .map(x => {
+                let title = x.querySelector(".film-detail > .film-name > a")?.getAttribute("title")
+                if (!title) return null;
+
+                let type = x.querySelector(".film-detail > .fd-infor > .fdi-type")?.innerText
+                let posterImage = x.querySelector(".film-poster > img")?.getAttribute("src")
+
+                if (type === "TV") {
+                    return {title, type, posterImage}
+                } else if (type === "Movie") {
+                    let yearReleased = x.querySelector(".film-detail > .fd-infor > .fdi-item")?.innerText
+                    let duration = x.querySelector(".film-detail > .fd-infor > .fdi-duration")?.innerText
+
+                    return {title, yearReleased, duration, type, posterImage}
+                }
+            })
+            .filter(x => x !== null && x !== undefined)
+            .filter((movie, index, self) => 
+                index === self.findIndex((m) => m.title === movie.title)
+            )
+    );
 }
 
 // Method to return a URL (or error) for a movie based on its exact name.
