@@ -20,6 +20,7 @@ const NOT_FOUND_MSG = "Please try a different query! Nothing was found..."
 
 // Puppeteer browser instance setup
 let browser;
+console.log("Starting...")
 startBrowser()
     .then(() => loadExtensions())
     .then(() => test())
