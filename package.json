@@ -1,0 +1,18 @@
+{
+  "name": "video-api",
+  "version": "1.0.0",
+  "description": "A REST API that lets users request a stream URL from a given show name and episode, or a movie's name.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "byteful",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^21.6.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
