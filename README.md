@@ -16,9 +16,9 @@ This is a REST API that allows users to get direct HLS streaming URLs. Simply ch
 ## Usage
 Since this is a REST API, all the calls are done with HTTP.
 ```
-Request a movie based on its name.
+Request a movie based on its name. Set player to true to view a in-browser preview of the video URL, or omit.
 
-GET /movie?name=[name]
+GET /movie?name=[name]&player=[true]
 
 - If successful
 {
@@ -33,9 +33,9 @@ GET /movie?name=[name]
 }
 ```
 ```
-Request a show based on its name, episode number, and season number.
+Request a show based on its name, episode number, and season number. Set player to true to view a in-browser preview of the video URL, or omit.
 
-GET /show?name=[name]&season=[season]&episode=[episode]
+GET /show?name=[name]&season=[season]&episode=[episode]&player=[true]
 
 - If successful
 {

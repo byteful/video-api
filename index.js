@@ -4,6 +4,7 @@ import puppeteer from "puppeteer-extra";
 import puppeteer_extra_plugin_stealth from "puppeteer-extra-plugin-stealth";
 import config from "./config.js";
 import fs from 'fs'
+import corsAnywhere from 'cors-anywhere'
 
 const ublock = new URL('uBlock0.chromium', import.meta.url).toString().substring("file:///".length)
 // Initialize stealth plugin for puppeteer to bypass FMovies' detection
@@ -13,6 +14,16 @@ stealth.enabledEvasions.delete('iframe.contentWindow');
 puppeteer.use(stealth);
 
 const app = express();
+
+let proxy = corsAnywhere.createServer({
+    originWhitelist: [],
+    requireHeaders: [],
+    removeHeaders: [],
+    setHeaders: {
+        "Origin": "https://rabbitstream.net",
+        "Referer": "https://rabbitstream.net"
+    }
+});
 
 // Constants and Helpers
 const SEARCH_URL = (name) => `https://fmovies.ps/search/${name.replace(/ /g, "-")}`;
@@ -75,13 +86,19 @@ if (config.hasIndexPage) {
 // API endpoint to get movie URL
 app.get("/movie", async (req, res) => {
     let name = req.query.name;
+    let player = req.query.player;
     if (!name) return res.sendStatus(400);
 
     name = name.toLowerCase();
 
     if (config.cache && cache.movies[name]) {
+        let url = cache.movies[name]
+        if (player) {
+            return res.send(fs.readFileSync("./player.html", {encoding: "utf-8"}).replace("%video_url%", url))
+        }
+
         return res.send({
-            url: cache.movies[name],
+            url,
             name,
             info: INFO_MSG
         })
@@ -118,13 +135,19 @@ app.get("/show", async (req, res) => {
     let name = req.query.name;
     let season = req.query.season;
     let episode = req.query.episode;
+    let player = req.query.player;
     if (!name || !season || !episode || !isValidNumber(season) || !isValidNumber(episode)) return res.sendStatus(400);
 
     name = name.toLowerCase();
 
     if (config.cache && cache.shows?.[name]?.[season]?.[episode]) {
+        let url = cache.shows[name][season][episode]
+        if (player) {
+            return res.send(fs.readFileSync("./player.html", {encoding: "utf-8"}).replace("%video_url%", url))
+        }
+
         return res.send({
-            url: cache.shows[name][season][episode],
+            url,
             name,
             season,
             episode,
@@ -149,6 +172,10 @@ app.get("/show", async (req, res) => {
             saveCache()
         }
 
+        if (player) {
+            return res.send(fs.readFileSync("./player.html", {encoding: "utf-8"}).replace("%video_url%", url))
+        }
+
         res.status(200).send({
             url,
             name,
@@ -160,6 +187,12 @@ app.get("/show", async (req, res) => {
         console.log(e)
         res.status(500).send({error: ERROR_MSG})
     }
+});
+
+/* Attach our cors proxy to the existing API on the /proxy endpoint. */
+app.get('/proxy/:proxyUrl*', (req, res) => {
+    req.url = req.url.replace('/proxy/', '/'); // Strip '/proxy' from the front of the URL, else the proxy won't work.
+    proxy.emit('request', req, res);
 });
 
 // API endpoint to get search results
@@ -344,7 +377,7 @@ function injectGrabber(page) {
     return new Promise((resolve) => {
         page.on("request", r => {
             if(r.url().includes("index.m3u8")) {
-                resolve(r.url())
+                resolve(r.url().replace("/360/", "/1080/"))
             }
         });
     })

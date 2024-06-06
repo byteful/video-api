@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>video-api preview player</title>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+</head>
+<body>
+    <video
+        id="my-video"
+        class="video-js"
+        controls
+        preload="auto"
+        width="640"
+        height="264"
+        data-setup="{}"
+    >
+        <p class="vjs-no-js">
+        To view this video please enable JavaScript, and consider upgrading to a
+        web browser that
+        <a href="https://videojs.com/html5-video-support/" target="_blank"
+            >supports HTML5 video</a
+        >
+        </p>
+    </video>
+    <p style="font-family: 'Courier New', Courier, monospace;">Video URL:</p>
+    <textarea style="font-family: 'Courier New', Courier, monospace;" id="url-display">Loading...</textarea>
+    <br>
+    <button id="copy-button" onclick="copyUrl()">Copy Video URL</button>
+
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <script>
+        var player = videojs('my-video')
+        let url = "%video_url%"
+        document.querySelector('#url-display').innerText = url
+        player.src({type: "application/x-mpegURL", src: window.location.protocol + "//" + window.location.host + "/proxy/" + url })
+
+        function copyUrl() {
+            navigator.clipboard.writeText(url)
+            let btn = document.querySelector("#copy-button");
+            let old = btn.innerText
+            btn.innerText = "Copied!"
+            setTimeout(() => btn.innerText = old, 300)
+        }
+    </script>
+</body>
+</html>
