@@ -75,4 +75,4 @@ GET /search?query=[title]
 ```
 
 > [!IMPORTANT]
-> #### You must be patient with this API as it needs time to webscrape. You should NEVER expect it to resolve quickly.
+> #### You must be patient with this API as it needs time to webscrape. You shouldn't expect it to resolve quickly unless the video URL is cached.

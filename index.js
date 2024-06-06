@@ -2,6 +2,8 @@
 import express from "express";
 import puppeteer from "puppeteer-extra";
 import puppeteer_extra_plugin_stealth from "puppeteer-extra-plugin-stealth";
+import config from "./config.js";
+import fs from 'fs'
 
 const ublock = new URL('uBlock0.chromium', import.meta.url).toString().substring("file:///".length)
 // Initialize stealth plugin for puppeteer to bypass FMovies' detection
@@ -25,11 +27,11 @@ startBrowser()
     .then(() => loadExtensions())
     .then(() => test())
     .then(() => console.log("Browser is ready! Now starting API endpoint..."))
-    .then(() => app.listen(3000, () => console.log("API is ready!")))
+    .then(() => app.listen(config.port, () => console.log("API is ready!")))
     .catch((e) => console.error(e));
 async function startBrowser() {
     browser = await puppeteer.launch({
-        headless: 'new',
+        headless: config.headless_puppeteer ? 'new' : false,
         devtools: false,
         args: [`--load-extension=${ublock}`]
         // executablePath: '/usr/bin/chromium-browser'
@@ -42,15 +44,48 @@ async function loadExtensions() {
     await page.close()
 }
 
+// Initialize file cache
+let cache = {shows: {}, movies: {}}
+if (config.cache) {
+    if (fs.existsSync("./cache.json")) {
+        cache = JSON.parse(fs.readFileSync("./cache.json", { encoding: "utf-8" }))
+    } else {
+        saveCache()
+    }
+}
+
+async function saveCache() {
+    fs.writeFile("./cache.json", JSON.stringify(cache, null, 2), { encoding: "utf-8" }, (err) => {
+        if (err) throw err;
+        console.log("Saved cache!")
+    })
+}
+
 // Test function that runs after everything initializes
 function test() {
     
+}
+
+if (config.hasIndexPage) {
+    app.get("/", (req, res) => {
+        res.send(fs.readFileSync("./index.html", { encoding:"utf-8" }))
+    });
 }
 
 // API endpoint to get movie URL
 app.get("/movie", async (req, res) => {
     let name = req.query.name;
     if (!name) return res.sendStatus(400);
+
+    name = name.toLowerCase();
+
+    if (config.cache && cache.movies[name]) {
+        return res.send({
+            url: cache.movies[name],
+            name,
+            info: INFO_MSG
+        })
+    }
 
     try {
         let url = await searchMovie(name)
@@ -62,12 +97,18 @@ app.get("/movie", async (req, res) => {
             return
         }
 
+        if (config.cache) {
+            cache.movies[name] = url;
+            saveCache()
+        }
+
         res.status(200).send({
             url,
             name,
             info: INFO_MSG
         })
-    } catch (ignored) {
+    } catch (e) {
+        console.log(e)
         res.status(500).send({error: ERROR_MSG})
     }
 });
@@ -79,6 +120,18 @@ app.get("/show", async (req, res) => {
     let episode = req.query.episode;
     if (!name || !season || !episode || !isValidNumber(season) || !isValidNumber(episode)) return res.sendStatus(400);
 
+    name = name.toLowerCase();
+
+    if (config.cache && cache.shows?.[name]?.[season]?.[episode]) {
+        return res.send({
+            url: cache.shows[name][season][episode],
+            name,
+            season,
+            episode,
+            info: INFO_MSG
+        })
+    }
+
     try {
         let url = await searchShow(name, season, episode)
 
@@ -89,6 +142,17 @@ app.get("/show", async (req, res) => {
             return
         }
 
+        if (config.cache) {
+            if (!cache.shows[name]) {
+                cache.shows[name] = {}
+            }
+            if (!cache.shows[name][season]) {
+                cache.shows[name][season] = {}
+            }
+            cache.shows[name][season][episode] = url
+            saveCache()
+        }
+
         res.status(200).send({
             url,
             name,
@@ -96,7 +160,8 @@ app.get("/show", async (req, res) => {
             episode,
             info: INFO_MSG
         })
-    } catch (ignored) {
+    } catch (e) {
+        console.log(e)
         res.status(500).send({error: ERROR_MSG})
     }
 });
@@ -257,6 +322,15 @@ async function injectPageCleaner(page) {
         if (r.url().includes("devtool")) {
             r.abort();
             return
+        }
+        if (!page.url().includes("watch-")) {
+            let toBlock = ["font", "stylesheet", "image", "media"];
+            if (toBlock.indexOf(r.resourceType()) !== -1) {
+                r.abort();
+            } else {
+                r.continue()
+            }
+            return;
         }
         r.continue()
     });
