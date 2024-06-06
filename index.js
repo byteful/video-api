@@ -143,12 +143,8 @@ app.get("/show", async (req, res) => {
         }
 
         if (config.cache) {
-            if (!cache.shows[name]) {
-                cache.shows[name] = {}
-            }
-            if (!cache.shows[name][season]) {
-                cache.shows[name][season] = {}
-            }
+            cache.shows[name] ??= {};
+            cache.shows[name][season] ??= {};
             cache.shows[name][season][episode] = url
             saveCache()
         }
@@ -173,6 +169,13 @@ app.get("/search", async (req, res) => {
 
     try {
         let data = await search(query)
+
+        if (!data || data.length == 0) {
+            res.status(404).send({
+                error: NOT_FOUND_MSG
+            })
+            return
+        }
 
         res.status(200).send(data)
     } catch (ignored) {
