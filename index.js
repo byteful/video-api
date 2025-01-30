@@ -83,6 +83,13 @@ if (config.hasIndexPage) {
     });
 }
 
+// API endpoint to dump cache
+app.get("/cache", async (req, res) => {
+    if (!config.cache) return res.send("Cache not available.");
+
+    res.send(JSON.stringify(cache));
+});
+
 // API endpoint to get movie URL
 app.get("/movie", async (req, res) => {
     let name = req.query.name;
@@ -266,13 +273,14 @@ async function searchMovie(name) {
     let titles = await page.evaluate(() => Array.from(document.querySelector(".film_list-wrap").children).filter(x => x.querySelector(".fdi-type")?.innerText === "Movie").map(x => x.querySelector(".film-detail > .film-name > a")?.getAttribute("title")).filter(x => x !== null && x !== undefined).map(x => x.toLowerCase()));
     if (!titles.includes(name)) return null;
 
-    await page.evaluate((name) => {
+    let posterImage = await page.evaluate((name) => {
         let list = Array.from(document.querySelector(".film_list-wrap").children)
         for (let movie of list) {
             let hook = movie.querySelector(".film-detail > .film-name > a")
             if (hook && hook.getAttribute("title").toLowerCase() === name) {
+                let posterImage = movie.querySelector(".film-poster > img")?.getAttribute("src")
                 hook.click();
-                return
+                return posterImage;
             }
         }
     }, name);
@@ -298,13 +306,14 @@ async function searchShow(name, season, episode) {
     let titles = await page.evaluate(() => Array.from(document.querySelector(".film_list-wrap").children).filter(x => x.querySelector(".fdi-type")?.innerText === "TV").map(x => x.querySelector(".film-detail > .film-name > a")?.getAttribute("title")).filter(x => x !== null && x !== undefined).map(x => x.toLowerCase()));
     if (!titles.includes(name)) return null;
 
-    await page.evaluate((name) => {
+    let posterImage = await page.evaluate((name) => {
         let list = Array.from(document.querySelector(".film_list-wrap").children)
         for (let show of list) {
             let hook = show.querySelector(".film-detail > .film-name > a")
             if (hook && hook.getAttribute("title").toLowerCase() === name) {
+                let posterImage = show.querySelector(".film-poster > img")?.getAttribute("src")
                 hook.click();
-                return
+                return posterImage;
             }
         }
     }, name);
